@@ -102,7 +102,7 @@ class CategoryTree
         $collection->addFieldToFilter('level', ['gt' => $level]);
         $collection->addFieldToFilter('level', ['lteq' => $level + $depth - self::DEPTH_OFFSET]);
         $collection->addIsActiveFilter();
-        $collection->setOrder('level');
+        $collection->setOrder('path');
         $collection->getSelect()->orWhere(
             $collection->getSelect()
                 ->getConnection()
@@ -111,6 +111,7 @@ class CategoryTree
                 ) . ' = ?',
             $rootCategoryId
         );
+        $string = $collection->getSelect()->__toString();
 
         return $collection->getIterator();
     }
