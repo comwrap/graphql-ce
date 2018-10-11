@@ -49,7 +49,7 @@ class ExtractDataFromCategoryTree
 
             $level = $this->grabLevel($pathElements, 0);
             if (!empty($tree)){
-                $tree = array_merge($level, $tree);
+                $tree = $this->array_merge_recursive_ex($level, $tree);
             }else{
                 $tree = $level;
             }
@@ -67,6 +67,25 @@ class ExtractDataFromCategoryTree
         }
 
         return $tree;
+    }
+    public function array_merge_recursive_ex(array & $array1, array & $array2)
+    {
+        $merged = $array1;
+
+        foreach ($array2 as $key => & $value)
+        {
+            if (is_array($value) && isset($merged[$key]) && is_array($merged[$key]))
+            {
+                $merged[$key] = $this->array_merge_recursive_ex($merged[$key], $value);
+            } else if (is_numeric($key))
+            {
+                if (!in_array($value, $merged))
+                    $merged[] = $value;
+            } else
+                $merged[$key] = $value;
+        }
+
+        return $merged;
     }
 
     public function grabLevel($elements, $index){
