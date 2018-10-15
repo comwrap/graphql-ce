@@ -15,10 +15,17 @@ use Magento\Catalog\Api\Data\CategoryInterface;
  */
 class ExtractDataFromCategoryTree
 {
+    const START_CATEGORY_FETCH_LEVEL = 1;
+
     /**
      * @var Hydrator
      */
     private $categoryHydrator;
+
+    /**
+     * @var CategoryInterface;
+     */
+    private $iteratingCategory;
 
     /**
      * @param Hydrator $categoryHydrator
@@ -42,60 +49,60 @@ class ExtractDataFromCategoryTree
             /** @var CategoryInterface $category */
             $category = $iterator->current();
             $iterator->next();
-            $nextCategory = $iterator->current();
 
             $pathElements = explode("/", $category->getPath());
+            $this->iteratingCategory = $category;
 
-
-            $level = $this->grabLevel($pathElements, 0);
-            if (!empty($tree)){
-                $tree = $this->array_merge_recursive_ex($level, $tree);
-            }else{
-                $tree = $level;
+            $currentLevelTree = $this->generateLevelTree($pathElements, self::START_CATEGORY_FETCH_LEVEL);
+            if (empty($tree)) {
+                $tree = $currentLevelTree;
             }
-
-            //            for ($level = 1; $level <= $category->getLevel(); $level++){
-//            if ($category->getLevel() >= 2)
-//            $element[$pathElements[1]] = $this->grabLevel(2, (int) $category->getLevel(), $pathElements);
-//                $tree[$category->getId()] = $this->categoryHydrator->hydrateCategory($category);
-//                $tree[$category->getId()]['model'] = $category;
-//            }
-
-//            if ($nextCategory && (int) $nextCategory->getLevel() !== (int) $category->getLevel()) {
-//                $tree[$category->getId()]['children'] = $this->execute($iterator);
-//            }
+            $tree = $this->mergeCategoriesTrees($currentLevelTree, $tree);
         }
 
         return $tree;
     }
-    public function array_merge_recursive_ex(array & $array1, array & $array2)
+
+    /**
+     * Merge together complex categories tree
+     *
+     * @param array $tree1
+     * @param array $tree2
+     * @return array
+     */
+    private function mergeCategoriesTrees(array &$tree1, array &$tree2): array
     {
-        $merged = $array1;
-
-        foreach ($array2 as $key => & $value)
-        {
-            if (is_array($value) && isset($merged[$key]) && is_array($merged[$key]))
-            {
-                $merged[$key] = $this->array_merge_recursive_ex($merged[$key], $value);
-            } else if (is_numeric($key))
-            {
-                if (!in_array($value, $merged))
-                    $merged[] = $value;
-            } else
-                $merged[$key] = $value;
+        $mergedTree = $tree1;
+        foreach ($tree2 as $currentKey => &$value){
+            if (is_array($value) && isset($mergedTree[$currentKey]) && is_array($mergedTree[$currentKey])){
+                $mergedTree[$currentKey] = $this->mergeCategoriesTrees($mergedTree[$currentKey], $value);
+            }else{
+                $mergedTree[$currentKey] = $value;
+            }
         }
-
-        return $merged;
+        return $mergedTree;
     }
 
-    public function grabLevel($elements, $index){
+    /**
+     * Recursive method to generate tree for one category path
+     *
+     * @param $elements
+     * @param $index
+     * @return array
+     */
+    private function generateLevelTree($elements, $index): array
+    {
 
         $tree = [];
         $tree[$elements[$index]]['id'] = $elements[$index];
+        if ($index == count($elements) - 1){
+            $tree[$elements[$index]] = $this->categoryHydrator->hydrateCategory($this->iteratingCategory);
+            $tree[$elements[$index]]['model'] = $this->iteratingCategory;
+        }
         $currentIndex = $index;
         $index++;
         if (isset($elements[$index])){
-            $tree[$elements[$currentIndex]]['children'] = $this->grabLevel($elements, $index);
+            $tree[$elements[$currentIndex]]['children'] = $this->generateLevelTree($elements, $index);
         }
         return $tree;
 
